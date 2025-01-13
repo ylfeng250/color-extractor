@@ -2,15 +2,16 @@ import { ColorPalette, RGB } from "../types";
 import { colorDistance, rgbToHex } from "./shared";
 
 /**
- *  K-Means算法
- * @param imageData  图像数据
- * @param k  聚类数量
- * @returns  颜色数组
- * 算法描述：
- * 1.随机选择初始中心点
- * 2.计算每个像素到中心点的距离，将像素分配到距离最近的中心点
- * 3.更新中心点，将每个簇的中心点设置为簇中所有像素的平均值
- * 4.重复步骤2和步骤3，直到中心点不再变化或者达到最大迭代次数
+ * K-Means算法
+ * @param imageData 图像数据
+ * @param k 聚类数量
+ * @returns 颜色数组
+ *
+ * 动态调整逻辑：
+ * - 首先根据图像颜色分布计算颜色复杂度。
+ * - 如果颜色分布较为单一，迭代次数减少（如 5 次）。
+ * - 如果颜色分布复杂，允许更多迭代次数（如 50~100 次）。
+ * - 同时结合动态收敛条件，提前终止迭代。
  */
 export function kMeans(imageData: ImageData, k: number): ColorPalette {
   const pixels: RGB[] = [];
@@ -28,7 +29,17 @@ export function kMeans(imageData: ImageData, k: number): ColorPalette {
     () => pixels[Math.floor(Math.random() * pixels.length)]
   );
 
-  for (let iteration = 0; iteration < 10; iteration++) {
+  // 计算图像颜色分布复杂度
+  const uniqueColors = new Set(pixels.map((pixel) => pixel.join(",")));
+  const colorComplexity = uniqueColors.size / pixels.length;
+
+  // 动态设置最大迭代次数
+  const maxIterations = colorComplexity > 0.1 ? 20 : 5; // 简单图像5次，复杂图像最多20次
+  const convergenceThreshold = 1e-3; // 中心点变化的阈值
+
+  let hasConverged = false;
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
     // 分配像素到最近的中心点
     const clusters: RGB[][] = Array.from({ length: k }, () => []);
     pixels.forEach((pixel) => {
@@ -36,7 +47,7 @@ export function kMeans(imageData: ImageData, k: number): ColorPalette {
       let closestCentroidIndex = 0;
       centroids.forEach((centroid, index) => {
         const distance = colorDistance(pixel, centroid);
-        if (distance < minDistance) {
+        if (distance <= minDistance) {
           minDistance = distance;
           closestCentroidIndex = index;
         }
@@ -45,7 +56,7 @@ export function kMeans(imageData: ImageData, k: number): ColorPalette {
     });
 
     // 更新中心点
-    centroids = clusters.map((cluster) => {
+    const newCentroids: RGB[] = clusters.map((cluster) => {
       if (cluster.length > 0) {
         const sum = cluster.reduce(
           (acc, pixel) => [
@@ -57,10 +68,19 @@ export function kMeans(imageData: ImageData, k: number): ColorPalette {
         );
         return sum.map((v) => Math.round(v / cluster.length)) as RGB;
       } else {
-        // 如果没有像素分配给这个簇，保持原来的中心点不变
-        return [0, 0, 0]; // 这里可以选择适当的默认值
+        return [0, 0, 0];
       }
     });
+
+    // 检查收敛,前后两次对比，检查距离是否小于 1e-3，如果中心点几乎不再变化，则代表收敛
+    hasConverged = centroids.every((centroid, index) => {
+      const distance = colorDistance(centroid, newCentroids[index]);
+      return distance < convergenceThreshold;
+    });
+
+    centroids = newCentroids;
+
+    if (hasConverged) break;
   }
 
   // 计算每个中心点的百分比
