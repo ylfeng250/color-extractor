@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { ColorCard } from "./components/color-card";
 import { medianCut } from "./lib/medianCut";
 import { Color, ColorPalette } from "./types";
-import { minimumDifferenceQuantization } from "./lib/minimumDifferenceQuantization";
 import { octreeQuantization } from "./lib/octreeQuantization";
 import { kMeans } from "./lib/kMeans";
 import { popularityQuantization } from "./lib/popularityQuantization";
@@ -12,10 +11,6 @@ const algorithmOptions = [
   {
     label: "中位切分",
     value: "medianCut",
-  },
-  {
-    label: "最小差值",
-    value: "minimumDifference",
   },
   {
     label: "K-Means",
@@ -105,9 +100,6 @@ export default function App() {
     switch (algorithm) {
       case "medianCut":
         colors = medianCut(imageData, colorCount);
-        break;
-      case "minimumDifference":
-        colors = minimumDifferenceQuantization(imageData, colorCount);
         break;
       case "kMeans":
         colors = kMeans(imageData, colorCount);
