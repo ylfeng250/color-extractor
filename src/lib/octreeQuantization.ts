@@ -1,5 +1,5 @@
 import { ColorPalette, RGB } from "../types";
-import { colorDistance, rgbToHex } from "./shared";
+import { rgbToHex } from "./shared";
 
 // 根据图像的宽高确定八叉树的递归层级
 function getLevelFromResolution(width: number, height: number): number {
